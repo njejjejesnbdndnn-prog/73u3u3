@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>JOGO</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      box-sizing: border-box;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #090d16 !important;
+      color: #f8fafc;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    
+    /* Efeitos Neon */
+    .neon-border {
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.25), inset 0 0 15px rgba(6, 182, 212, 0.15);
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Estilo do Cofre em Cores Neutras */
+    .vault-bg {
+      background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
+      color: #1e293b;
+    }
+    .vault-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(203, 213, 225, 0.8);
+      box-shadow: 0 10px 25px -5px rgba(51, 65, 85, 0.15);
+    }
+    .vault-btn {
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .vault-btn:active {
+      transform: scale(0.94);
+      background: #e2e8f0;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden select-none">
+
+  <!-- ==================== TELA 1: INTERFACE DO JOGO ==================== -->
+  <div id="screen-game" class="relative flex flex-col justify-between items-center w-full h-full p-2.5 max-w-md mx-auto overflow-hidden">
+    <!-- Header do Jogo -->
+    <header class="flex items-center justify-between w-full bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-800 shrink-0 z-10 shadow-lg">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-400 font-bold text-sm">
+          <i class="fa-solid fa-cube"></i>
+        </div>
+        <div>
+          <h1 class="font-orbitron font-black text-sm tracking-wider text-cyan-400 leading-none">JOGO</h1>
+          <span class="text-[10px] text-slate-400 font-bold">PONTOS: <span id="score-display" class="font-mono text-amber-400 text-xs">0</span></span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Controle de Áudio -->
+        <button id="btn-audio" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 border border-slate-700 text-slate-300 active:scale-95 transition">
+          <i id="audio-icon" class="fa-solid fa-volume-high text-xs"></i>
+        </button>
+
+        <!-- Botão SAIR Inteligente (1 toque -> modal, 12 toques -> 404) -->
+        <button id="btn-exit" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-500 text-white font-orbitron font-bold text-xs shadow-md shadow-rose-600/30 active:scale-95 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-right-from-bracket"></i> SAIR
+        </button>
+      </div>
+    </header>
+
+    <!-- Canvas Wrapper (Área de Jogo em Tela Cheia) -->
+    <main id="canvas-wrapper" class="relative flex-1 w-full my-2 flex items-center justify-center overflow-hidden rounded-2xl bg-slate-950 border border-slate-800/80 neon-border">
+      <canvas id="tetris-canvas" class="block rounded-xl bg-slate-950"></canvas>
+
+      <!-- Game Over Overlay -->
+      <div id="game-over-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-2xl hidden flex-col items-center justify-center p-6 text-center z-30">
+        <h2 class="font-orbitron text-2xl font-black text-rose-500 mb-1">FIM DE JOGO</h2>
+        <p class="text-xs text-slate-400 mb-4">Pontuação Total: <span id="final-score" class="text-amber-400 font-bold font-mono">0</span></p>
+        <button onclick="resetGame()" class="px-6 py-3 bg-cyan-500 text-slate-950 rounded-xl font-orbitron font-bold text-xs shadow-lg shadow-cyan-500/30 active:scale-95 transition">
+          JOGAR NOVAMENTE
+        </button>
+      </div>
+
+      <!-- Controles sobrepostos em Overlay Semi-Transparente sobre a parte inferior da área do jogo -->
+      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 w-[92%] max-w-[340px] z-20 flex items-center justify-center gap-2 p-2 bg-slate-950/75 backdrop-blur-md rounded-2xl border border-slate-700/60 shadow-2xl">
+        <button id="ctrl-left" class="flex-1 py-3 bg-slate-800/90 hover:bg-slate-700 active:bg-cyan-600 text-cyan-400 active:text-white rounded-xl flex items-center justify-center text-lg border border-slate-700/60 active:scale-95 transition">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <button id="ctrl-rotate" class="flex-1 py-3 bg-slate-800/90 hover:bg-slate-700 active:bg-fuchsia-600 text-fuchsia-400 active:text-white rounded-xl flex items-center justify-center text-lg border border-slate-700/60 active:scale-95 transition">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+        <button id="ctrl-right" class="flex-1 py-3 bg-slate-800/90 hover:bg-slate-700 active:bg-cyan-600 text-cyan-400 active:text-white rounded-xl flex items-center justify-center text-lg border border-slate-700/60 active:scale-95 transition">
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+        <button id="ctrl-drop" class="flex-1 py-3 bg-amber-600/90 hover:bg-amber-500 active:bg-amber-400 text-amber-100 rounded-xl flex items-center justify-center text-lg border border-amber-500/50 active:scale-95 transition">
+          <i class="fa-solid fa-angles-down"></i>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal de Saída Padrão -->
+  <div id="modal-exit" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-xs w-full text-center shadow-2xl">
+      <div class="w-12 h-12 bg-rose-500/20 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+        <i class="fa-solid fa-circle-exclamation"></i>
+      </div>
+      <h3 class="font-orbitron text-lg font-bold text-slate-100 mb-1">Deseja Sair?</h3>
+      <p class="text-xs text-slate-400 mb-6">Seu progresso atual na partida será encerrado.</p>
+      <div class="flex gap-3">
+        <button id="modal-cancel" class="flex-1 py-2.5 bg-slate-800 border border-slate-700 text-slate-300 font-semibold rounded-xl text-xs active:scale-95 transition">CANCELAR</button>
+        <button id="modal-confirm" class="flex-1 py-2.5 bg-rose-600 text-white font-semibold rounded-xl text-xs active:scale-95 transition shadow-lg shadow-rose-600/30">SAIR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TELA 2: PÁGINA 404 DISCRETA ==================== -->
+  <div id="screen-404" class="fixed inset-0 bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 z-40 hidden select-none">
+    <div class="text-center max-w-xs w-full">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-mono mb-6">
+        <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> SISTEMA INDISPONÍVEL
+      </div>
+
+      <!-- Dígitos Interativos Discretos (4 -> 1x, 0 -> 5x, 4 -> 1x) -->
+      <div class="flex justify-center items-center gap-2 font-orbitron font-black text-7xl my-3 tracking-tighter">
+        <span id="digit-1" class="cursor-pointer text-slate-200 active:text-cyan-400 p-1">4</span>
+        <span id="digit-2" class="cursor-pointer text-slate-200 active:text-cyan-400 p-1">0</span>
+        <span id="digit-3" class="cursor-pointer text-slate-200 active:text-cyan-400 p-1">4</span>
+      </div>
+
+      <h2 class="font-orbitron font-bold text-base text-slate-200 mt-2 mb-1">PÁGINA NÃO ENCONTRADA</h2>
+      <p class="text-xs text-slate-500 mb-8 font-mono">Recurso temporariamente indisponível no servidor.</p>
+
+      <button id="btn-back-404" class="w-full py-3 bg-slate-900 border border-slate-800 text-slate-300 font-orbitron text-xs font-bold rounded-xl active:scale-95 transition">
+        <i class="fa-solid fa-rotate-left mr-2"></i> RETORNAR
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== TELA 3: TELA DO ÚLTIMO NÍVEL (DISCRETA - CORES NEUTRAS) ==================== -->
+  <div id="screen-pin" class="fixed inset-0 vault-bg flex items-center justify-center p-4 z-50 hidden select-none">
+    <div class="vault-card p-6 rounded-3xl max-w-xs w-full text-center border border-slate-300 shadow-xl">
+      <h2 class="font-orbitron font-black text-lg text-slate-800 tracking-wide mb-2 pt-1">ÚLTIMO NÍVEL, PARABÉNS!!</h2>
+      <p class="text-[10px] font-bold text-slate-600 tracking-wider uppercase mb-6 leading-relaxed">
+        PARA CONSEGUIR A SEQUÊNCIA DE NÚMEROS ALCANCE 20 MIL PONTOS.
+      </p>
+
+      <!-- Display de Senha Discreto -->
+      <div id="pin-display" class="w-full h-12 bg-slate-50 border border-slate-300 rounded-xl mb-5 flex items-center justify-center px-3 font-mono font-bold text-slate-800 text-lg tracking-widest shadow-inner">
+        <span class="text-slate-400 text-xs font-sans font-normal">Digite a senha...</span>
+      </div>
+
+      <!-- Teclado Numérico Discreto em Tons Neutros -->
+      <div class="grid grid-cols-3 gap-2 mb-4">
+        <button onclick="pressNum('1')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">1</button>
+        <button onclick="pressNum('2')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">2</button>
+        <button onclick="pressNum('3')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">3</button>
+        <button onclick="pressNum('4')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">4</button>
+        <button onclick="pressNum('5')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">5</button>
+        <button onclick="pressNum('6')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">6</button>
+        <button onclick="pressNum('7')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">7</button>
+        <button onclick="pressNum('8')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">8</button>
+        <button onclick="pressNum('9')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">9</button>
+        <button onclick="clearPass()" class="vault-btn h-12 rounded-xl text-rose-600 font-bold text-sm"><i class="fa-solid fa-rotate-left"></i></button>
+        <button onclick="pressNum('0')" class="vault-btn h-12 rounded-xl font-orbitron font-bold text-base">0</button>
+        <button onclick="submitPass()" class="vault-btn h-12 rounded-xl text-emerald-600 font-bold text-base"><i class="fa-solid fa-check"></i></button>
+      </div>
+
+      <button onclick="backTo404FromPass()" class="text-xs text-slate-500 font-semibold hover:text-slate-700">Voltar</button>
+    </div>
+  </div>
+
+  <!-- ==================== TELA 4: COFRE DE MÍDIAS E NOTAS (CORES NEUTRAS) ==================== -->
+  <div id="screen-vault" class="fixed inset-0 vault-bg hidden flex-col z-50 select-none overflow-hidden">
+    <header class="w-full bg-slate-200/90 border-b border-slate-300 px-4 py-3 flex justify-between items-center backdrop-blur-md">
+      <span class="font-orbitron font-bold text-slate-800 text-sm tracking-wider">MÍDIAS & NOTAS</span>
+      <button onclick="lockVault()" class="px-3 py-1.5 rounded-lg bg-slate-300 border border-slate-400 text-slate-700 font-semibold text-xs active:scale-95 transition flex items-center gap-1">
+        <i class="fa-solid fa-xmark text-xs"></i> FECHAR
+      </button>
+    </header>
+
+    <!-- Abas -->
+    <div class="flex border-b border-slate-300 bg-slate-200/50">
+      <button id="tab-btn-media" onclick="switchVaultTab('media')" class="flex-1 py-2.5 text-xs font-bold font-orbitron border-b-2 border-slate-700 text-slate-800 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-photo-film"></i> MÍDIAS (<span id="media-count">0</span>)
+      </button>
+      <button id="tab-btn-notes" onclick="switchVaultTab('notes')" class="flex-1 py-2.5 text-xs font-bold font-orbitron border-b-2 border-transparent text-slate-500 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-note-sticky"></i> NOTAS (<span id="notes-count">0</span>)
+      </button>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-4 no-scrollbar relative">
+      <!-- Aba Mídias -->
+      <div id="vault-tab-media" class="space-y-4">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-semibold text-slate-600">Arquivos do dispositivo</p>
+          <label class="px-4 py-2 bg-slate-800 text-white rounded-xl font-bold text-xs cursor-pointer shadow-md active:scale-95 transition flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i> ADICIONAR
+            <input type="file" id="media-input" multiple accept="image/*,video/*" class="hidden" onchange="handleMediaUpload(event)">
+          </label>
+        </div>
+
+        <div id="media-grid" class="grid grid-cols-3 sm:grid-cols-4 gap-2.5"></div>
+
+        <div id="media-empty" class="hidden flex-col items-center justify-center py-16 text-center text-slate-500">
+          <i class="fa-solid fa-images text-4xl mb-2 text-slate-400"></i>
+          <p class="text-xs font-semibold">Nenhuma mídia armazenada.</p>
+        </div>
+      </div>
