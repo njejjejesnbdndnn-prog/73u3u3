@@ -228,3 +228,266 @@
           <p class="text-xs font-semibold">Nenhuma mídia armazenada.</p>
         </div>
       </div>
+      
+      <!-- Aba Notas -->
+      <div id="vault-tab-notes" class="space-y-4 hidden">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-semibold text-slate-600">Minhas anotações</p>
+          <button onclick="openNoteModal()" class="px-4 py-2 bg-slate-800 text-white rounded-xl font-bold text-xs shadow-md active:scale-95 transition flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i> NOVA NOTA
+          </button>
+        </div>
+
+        <div id="notes-list" class="grid grid-cols-1 gap-3"></div>
+
+        <div id="notes-empty" class="hidden flex-col items-center justify-center py-16 text-center text-slate-500">
+          <i class="fa-solid fa-note-sticky text-4xl mb-2 text-slate-400"></i>
+          <p class="text-xs font-semibold">Nenhuma nota criada.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Viewer Fullscreen de Mídia (Com Swipe e Sem Setas) -->
+  <div id="lightbox" class="fixed inset-0 bg-black/95 hidden z-50 flex-col justify-between">
+    <div class="p-4 flex justify-between items-center text-white bg-gradient-to-b from-black/80 to-transparent z-10">
+      <span id="lightbox-counter" class="font-orbitron text-xs font-bold text-slate-300">1 / 1</span>
+      <div class="flex items-center gap-4">
+        <button onclick="deleteCurrentMedia()" class="text-rose-500 hover:text-rose-400 text-lg active:scale-90 transition"><i class="fa-solid fa-trash"></i></button>
+        <button onclick="closeLightbox()" class="text-white text-xl active:scale-90 transition"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+
+    <div id="lightbox-viewer" class="flex-1 relative flex items-center justify-center overflow-hidden touch-none">
+      <!-- Mídia renderizada -->
+    </div>
+  </div>
+
+  <!-- Modal Criar/Editar Nota -->
+  <div id="modal-note" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="vault-card rounded-2xl p-5 w-full max-w-sm border border-slate-300">
+      <h3 class="font-orbitron font-bold text-sm text-slate-800 mb-3">Anotação</h3>
+      <input type="text" id="note-title-input" placeholder="Título..." class="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-semibold mb-3 focus:outline-none">
+      <textarea id="note-content-input" rows="4" placeholder="Conteúdo da nota..." class="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs mb-4 focus:outline-none resize-none"></textarea>
+      <div class="flex gap-2">
+        <button onclick="closeNoteModal()" class="flex-1 py-2 bg-slate-200 text-slate-700 font-bold text-xs rounded-xl active:scale-95 transition">Cancelar</button>
+        <button onclick="saveNote()" class="flex-1 py-2 bg-slate-800 text-white font-bold text-xs rounded-xl active:scale-95 transition">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ----------------------------------------------------
+       1. ÁUDIO SINTETIZADO DO JOGO
+    ---------------------------------------------------- */
+    let soundEnabled = true;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      const gameScreen = document.getElementById('screen-game');
+      if (!soundEnabled || gameScreen.classList.contains('hidden')) return;
+
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+
+        if (type === 'move') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(260, now);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc.start(now); osc.stop(now + 0.04);
+        } else if (type === 'rotate') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(400, now);
+          osc.frequency.exponentialRampToValueAtTime(600, now + 0.05);
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.start(now); osc.stop(now + 0.05);
+        } else if (type === 'drop') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.exponentialRampToValueAtTime(60, now + 0.08);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.start(now); osc.stop(now + 0.08);
+        } else if (type === 'clear') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.06);
+          osc.frequency.setValueAtTime(783.99, now + 0.12);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          osc.start(now); osc.stop(now + 0.2);
+        } else if (type === 'gameover') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.35);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.start(now); osc.stop(now + 0.35);
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('btn-audio').addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      document.getElementById('audio-icon').className = soundEnabled ? 'fa-solid fa-volume-high text-xs' : 'fa-solid fa-volume-xmark text-xs text-rose-400';
+    });
+
+    /* ----------------------------------------------------
+       2. JOGO DE BLOCOS
+    ---------------------------------------------------- */
+    const canvas = document.getElementById('tetris-canvas');
+    const ctx = canvas.getContext('2d');
+    const COLS = 10;
+    const ROWS = 20;
+    let BLOCK_SIZE = 20;
+
+    let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    let score = 0;
+    let gameOver = false;
+    let dropCounter = 0;
+    let dropInterval = 750;
+    let lastTime = 0;
+
+    const PALETTE = [null, '#00f0ff', '#ff007f', '#ffb703', '#06d6a0', '#7000ff', '#3a86ff', '#ff0055'];
+
+    const SHAPES = [
+      [],
+      [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+      [[0,2,0],[2,2,2],[0,0,0]],
+      [[3,3],[3,3]],
+      [[0,4,4],[4,4,0],[0,0,0]],
+      [[5,5,0],[0,5,5],[0,0,0]],
+      [[6,0,0],[6,6,6],[0,0,0]],
+      [[0,0,7],[7,7,7],[0,0,0]]
+    ];
+
+    let player = { pos: { x: 0, y: 0 }, matrix: null, colorIndex: 0 };
+
+    function resizeCanvas() {
+      const container = document.getElementById('canvas-wrapper');
+      if (!container) return;
+      const availableHeight = container.clientHeight - 8;
+      const availableWidth = container.clientWidth - 8;
+      if (availableHeight <= 0 || availableWidth <= 0) return;
+
+      BLOCK_SIZE = Math.floor(Math.min(availableHeight / ROWS, availableWidth / COLS));
+      if (BLOCK_SIZE < 10) BLOCK_SIZE = 10;
+
+      canvas.width = COLS * BLOCK_SIZE;
+      canvas.height = ROWS * BLOCK_SIZE;
+      draw();
+    }
+
+    function createPiece() {
+      const type = Math.floor(Math.random() * (SHAPES.length - 1)) + 1;
+      player.matrix = SHAPES[type];
+      player.colorIndex = type;
+      player.pos.y = 0;
+      player.pos.x = Math.floor(COLS / 2) - Math.floor(player.matrix[0].length / 2);
+
+      if (collide(grid, player)) {
+        gameOver = true;
+        playSound('gameover');
+        document.getElementById('final-score').innerText = score;
+        document.getElementById('game-over-overlay').classList.remove('hidden');
+        document.getElementById('game-over-overlay').classList.add('flex');
+      }
+    }
+
+    function collide(grid, player) {
+      const [m, o] = [player.matrix, player.pos];
+      for (let y = 0; y < m.length; ++y) {
+        for (let x = 0; x < m[y].length; ++x) {
+          if (m[y][x] !== 0 && (grid[y + o.y] && grid[y + o.y][x + o.x]) !== 0) return true;
+        }
+      }
+      return false;
+    }
+
+    function merge(grid, player) {
+      player.matrix.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) grid[y + player.pos.y][x + player.pos.x] = player.colorIndex;
+        });
+      });
+    }
+
+    function sweepGrid() {
+      let rowCount = 0;
+      outer: for (let y = grid.length - 1; y >= 0; --y) {
+        for (let x = 0; x < grid[y].length; ++x) {
+          if (grid[y][x] === 0) continue outer;
+        }
+        const row = grid.splice(y, 1)[0].fill(0);
+        grid.unshift(row);
+        ++y;
+        rowCount++;
+      }
+      if (rowCount > 0) {
+        score += rowCount * 100 * rowCount;
+        document.getElementById('score-display').innerText = score;
+        playSound('clear');
+      }
+    }
+
+    function drawMatrix(matrix, offset) {
+      matrix.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) {
+            const px = (x + offset.x) * BLOCK_SIZE;
+            const py = (y + offset.y) * BLOCK_SIZE;
+            ctx.fillStyle = PALETTE[value];
+            ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+          }
+        });
+      });
+    }
+
+    function draw() {
+      ctx.fillStyle = '#050811';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawMatrix(grid, { x: 0, y: 0 });
+      if (player.matrix) drawMatrix(player.matrix, player.pos);
+    }
+
+    function playerDrop() {
+      player.pos.y++;
+      if (collide(grid, player)) {
+        player.pos.y--;
+        merge(grid, player);
+        sweepGrid();
+        createPiece();
+      }
+      dropCounter = 0;
+    }
+
+    function moveLeft() {
+      if (gameOver) return;
+      player.pos.x--;
+      if (collide(grid, player)) player.pos.x++;
+      else playSound('move');
+    }
+
+    function moveRight() {
+      if (gameOver) return;
+      player.pos.x++;
+      if (collide(grid, player)) player.pos.x--;
+      else playSound('move');
+    }
+    
